@@ -195,11 +195,47 @@ class PackageResolverTest {
     assertThat(androidCommand).isEmpty()
   }
 
+  @FixtureName("up-to-date-android-m2repository")
+  @Test public void upToDateIndirectSupportLibraryRepositoryRecognized() {
+    project.apply plugin: 'com.android.application'
+
+    def localMaven = new File(fixture.getRoot(), "localMaven")
+    assertThat(localMaven).exists()
+    project.repositories.maven {
+      url = localMaven
+    }
+
+    project.dependencies {
+      compile 'com.etsy.android.grid:library:1.0.5'
+    }
+
+    packageResolver.resolveSupportLibraryRepository()
+    assertThat(androidCommand).isEmpty()
+  }
+
   @FixtureName("missing-android-m2repository")
   @Test public void missingSupportLibraryRepositoryIsDownloaded() {
     project.apply plugin: 'com.android.application'
     project.dependencies {
       compile 'com.android.support:support-v4:19.1.0'
+    }
+
+    packageResolver.resolveSupportLibraryRepository()
+    assertThat(androidCommand).containsExactly('update extra-android-m2repository')
+  }
+
+  @FixtureName("missing-android-m2repository")
+  @Test public void missingIndirectSupportLibraryRepositoryIsDownloaded() {
+    project.apply plugin: 'com.android.application'
+
+    def localMaven = new File(fixture.getRoot(), "localMaven")
+    assertThat(localMaven).exists()
+    project.repositories.maven {
+      url = localMaven
+    }
+
+    project.dependencies {
+      compile 'com.etsy.android.grid:library:1.0.5'
     }
 
     packageResolver.resolveSupportLibraryRepository()
@@ -222,6 +258,24 @@ class PackageResolverTest {
     project.apply plugin: 'com.android.application'
     project.dependencies {
       compile 'com.android.support:support-v4:19.1.0'
+    }
+
+    packageResolver.resolveSupportLibraryRepository()
+    assertThat(androidCommand).containsExactly('update extra-android-m2repository')
+  }
+
+  @FixtureName("outdated-android-m2repository")
+  @Test public void outdatedIndirectSupportLibraryRepositoryIsDownloaded() {
+    project.apply plugin: 'com.android.application'
+
+    def localMaven = new File(fixture.getRoot(), "localMaven")
+    assertThat(localMaven).exists()
+    project.repositories.maven {
+      url = localMaven
+    }
+
+    project.dependencies {
+      compile 'com.etsy.android.grid:library:1.0.5'
     }
 
     packageResolver.resolveSupportLibraryRepository()

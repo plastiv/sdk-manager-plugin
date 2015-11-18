@@ -4,6 +4,14 @@ import com.android.sdklib.repository.FullRevision
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.DependencySet
+import org.gradle.api.artifacts.LenientConfiguration
+import org.gradle.api.artifacts.UnresolvedDependency
+import org.gradle.api.artifacts.result.DependencyResult
+import org.gradle.api.artifacts.result.ResolutionResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+import org.gradle.api.internal.artifacts.result.DefaultResolvedDependencyResult
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.gradle.api.tasks.StopExecutionException
@@ -134,6 +142,11 @@ class PackageResolver {
   }
 
   def resolveSupportLibraryRepository() {
+
+    project.repositories.maven {
+      url = androidRepositoryDir
+    }
+
     def supportDeps = findDependenciesStartingWith 'com.android.support'
 
     if (supportDeps.isEmpty()) {
@@ -143,15 +156,11 @@ class PackageResolver {
 
     log.debug "Found support library dependencies: $supportDeps"
 
-    project.repositories.maven {
-      url = androidRepositoryDir
-    }
-
     def needsDownload = false;
     if (!folderExists(androidRepositoryDir)) {
       needsDownload = true
       log.lifecycle 'Support library repository missing. Downloading...'
-    } else if (!dependenciesAvailable(supportDeps)) {
+    } else if (supportDeps.count { it instanceof UnresolvedDependencyResult } > 0) {
       needsDownload = true
       log.lifecycle 'Support library repository outdated. Downloading update...'
     }
@@ -279,11 +288,12 @@ class PackageResolver {
   }
 
   def findDependenciesStartingWith(String prefix) {
-    def deps = []
+    def deps = new HashSet()
     for (Configuration configuration : project.configurations) {
-      for (Dependency dependency : configuration.dependencies) {
-        if (dependency.group != null && dependency.group.startsWith(prefix)) {
-          deps.add dependency
+      ResolutionResult result = configuration.getIncoming().getResolutionResult()
+      result.allDependencies { dependency ->
+        if (dependency.requested.displayName.startsWith(prefix)) {
+          deps << dependency
         }
       }
     }
